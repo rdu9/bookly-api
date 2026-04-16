@@ -1,9 +1,0 @@
-{
-    "editor.tokenColorCustomizations": {
-        "[Cursor Dark Pro]": {
-            "comments": "#6A6A6A"
-        },
-        "comments": "",
-        "textMateRules": []
-    }
-}
