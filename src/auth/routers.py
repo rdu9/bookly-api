@@ -70,7 +70,7 @@ async def send_mail(emails: EmailModel):
 
 @auth_router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def create_user_account(
-    payload: UserCreateModel, bg_tasks: BackgroundTasks ,session: AsyncSession = Depends(get_session)
+    payload: UserCreateModel ,session: AsyncSession = Depends(get_session)
 ):
     email = payload.email
 
@@ -130,6 +130,9 @@ async def create_user_account(
 @auth_router.get("/verify/{token}")
 async def verify_user_account(token: str, session: AsyncSession = Depends(get_session)):
     token_data = decode_url_safe_token(token)
+    
+    if 'email' not in token_data.keys():
+        raise InvalidCredentials()
 
     user_email = token_data.get("email")
 

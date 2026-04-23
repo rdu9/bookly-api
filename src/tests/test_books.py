@@ -1,32 +1,64 @@
-# asta testeaza rutele pentru books
+import pytest
+import uuid
+from unittest.mock import ANY
+from src.books.schemas import Book
+from datetime import datetime,date
 
-# da define la url prefix odata sus de tot, folositor ca sa fie o variabila pentru orice link
-books_prefix = f"/api/v1/books"
+books_prefix = "/api/v1/books"
 
-def test_get_all_books(test_client, fake_book_service, fake_session):
+# verifica ruta care da call la service in primul rand
+
+def test_get_all_books_calls_service(test_client, mock_book_service, mock_session):
     
-    # test_client, fake_book_service, fake_session - toate fixtures din conftest.py
-    # pytest le injecteaza automat dupa nume, nu e nevoie de import
+    # asta trebuie returnat cand get_all_books e called
+    # ruta da call la book_service.get_all_books(session) si da serialise la result
     
-    # response trimite GET /api/v1/books la fastapi app
-    # aplicatia da run, da de functia reala dar:
-    # - get_session returenaza mock_session ( nu un db real )
-    # - role_checker e bypassed 
-    # deci ruta da call la book_service.get_all_books(session)
+    mock_book_service.get_all_books.return_value = []
 
-    response = test_client.get(url=f"{books_prefix}")
+    response = test_client.get(
+        books_prefix, 
+        headers={"Authorization": "Bearer dummy_token"}
+    )
 
-    # Mock da record automat la fiecare method call facut la el
-    # .get_all_books_called_once() e un Mock "magic assertion" method
-    # verifica ca get_all_books e called exact 1 singura data
-    # daca e called de 0, 2+ ori da fail
+    assert response.status_code == 200 # daca status codeu nu e 200, inseamna ca nimic nu mai conteaza
 
-    assert fake_book_service.get_all_books_called_once()
+    mock_book_service.get_all_books.assert_called_once() # da fail daca get_all_books nu a fost niciodata called, si da fail daca a fost called mai mult de 1 data
     
-    # verifica ca get_all_books e called cu mock_session ca argument
-    # daca ruta pasata are sesiunea invalida, asta da fail
+    # asta verifica:
+    # 1. daca ruta a fost called doar 1 data
+    # 2. called cu exact acel argument
+    
+    mock_book_service.get_all_books.assert_called_once_with(mock_session)
+
+
+# verifica daca ruta da return la service_data corect
+
+def test_get_all_books_returns_service_data(test_client, mock_book_service):
+
+    fake_books = [
+        Book(
+            uid=uuid.UUID("12345678-1234-5678-1234-567812345678"),
+            title="Clean Code",
+            author="Robert Martin",
+            publisher="Prentice Hall",
+            published_date=date(2008, 8, 1),
+            page_count=431,
+            language="English",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+        )
+    ]
+
+    mock_book_service.get_all_books.return_value = fake_books
+
+    response = test_client.get(books_prefix)
+
+    assert response.status_code == 200
+    assert response.json()[0]["title"] == "Clean Code"
+    assert response.json()[0]["author"] == "Robert Martin"
+    # response.json() da parse la json bodyu fastapi a returnat
+    # testu asta verifica daca ruta a dat serialise corect la service return value
+    # daca ruta da drop la fielduri sau transforma gresit data -> asta da fail
     #
-    # aceste 2 linii se intreaba daca ruta a dat call la service methodu corect, cu argumentu corect
-    # asta e testing route behaviour, nu service logic
-    
-    assert fake_book_service.get_all_books_called_once_with(fake_session)
+    # mock_session nu e un parametru aici pentru ca nu il assertam
+    # dam request doar la fixturesurile pe care le folosim in test
